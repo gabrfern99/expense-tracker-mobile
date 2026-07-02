@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { formatDateDisplay, formatMoney } from '@/lib/format';
+import { colors, font, radius, spacing } from '@/theme';
 import { Expense } from '@/types';
 
 interface Props {
@@ -12,8 +13,13 @@ interface Props {
 
 export function ExpenseListItem({ expense, categoryName, categoryColor, onPress }: Props) {
   return (
-    <Pressable style={styles.row} onPress={onPress}>
-      <View style={[styles.dot, { backgroundColor: categoryColor }]} />
+    <Pressable
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      onPress={onPress}
+    >
+      <View style={[styles.iconWrap, { backgroundColor: `${categoryColor}1A` }]}>
+        <View style={[styles.dot, { backgroundColor: categoryColor }]} />
+      </View>
       <View style={styles.middle}>
         <Text style={styles.title} numberOfLines={1}>
           {expense.description || categoryName}
@@ -31,16 +37,22 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    gap: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#e4e7ec',
-    backgroundColor: '#fff',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+    backgroundColor: colors.surface,
   },
-  dot: { width: 12, height: 12, borderRadius: 6 },
+  pressed: { backgroundColor: colors.primarySoft },
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dot: { width: 14, height: 14, borderRadius: 7 },
   middle: { flex: 1 },
-  title: { fontSize: 16, fontWeight: '500', color: '#1a1a1a' },
-  sub: { fontSize: 13, color: '#667085', marginTop: 2 },
-  amount: { fontSize: 16, fontWeight: '600', color: '#1a1a1a' },
+  title: { fontSize: font.body, fontWeight: '600', color: colors.text },
+  sub: { fontSize: font.xs, color: colors.textMuted, marginTop: 2 },
+  amount: { fontSize: font.body, fontWeight: '700', color: colors.text },
 });

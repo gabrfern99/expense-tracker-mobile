@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -15,17 +16,22 @@ import DateTimePicker, {
 } from '@react-native-community/datetimepicker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
+import { getCategoryBudgetStatus } from '@/db/budgets';
 import * as expensesApi from '@/db/expenses';
+import { createRecurring, materializeRecurring } from '@/db/recurring';
 import { getErrorMessage } from '@/lib/errors';
 import { CategoryPicker } from '@/components/CategoryPicker';
 import {
   formatDateDisplay,
+  formatMoney,
   fromISODate,
   normalizeAmountInput,
+  toAmountInput,
   toISODate,
   todayISO,
 } from '@/lib/format';
 import { useExpenseStore } from '@/store/expenseStore';
+import { colors, font, radius, spacing } from '@/theme';
 
 export default function ExpenseFormScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -41,6 +47,7 @@ export default function ExpenseFormScreen() {
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(todayISO());
   const [showDate, setShowDate] = useState(false);
+  const [repeat, setRepeat] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -57,7 +64,7 @@ export default function ExpenseFormScreen() {
       try {
         const e = await expensesApi.getExpense(Number(id));
         if (!active) return;
-        setAmount(e.amount);
+        setAmount(toAmountInput(e.amount));
         setCategoryId(e.category_id);
         setDescription(e.description ?? '');
         setDate(e.date);
@@ -91,12 +98,42 @@ export default function ExpenseFormScreen() {
         description: description.trim() || null,
         date,
       };
-      if (isNew) {
+      const d = fromISODate(date);
+      if (isNew && repeat) {
+        // Create a recurring rule and generate this month's occurrence.
+        await createRecurring({
+          category_id: categoryId,
+          amount: normalized,
+          description: description.trim() || null,
+          day_of_month: d.getDate(),
+          start_date: date,
+        });
+        await materializeRecurring(d.getFullYear(), d.getMonth() + 1);
+      } else if (isNew) {
         await expensesApi.createExpense(input);
       } else {
         await expensesApi.updateExpense(Number(id), input);
       }
       router.back();
+
+      // Non-blocking budget alert for the expense's month.
+      const catName = categories.find((c) => c.id === categoryId)?.name ?? 'this category';
+      getCategoryBudgetStatus(d.getFullYear(), d.getMonth() + 1, categoryId)
+        .then((status) => {
+          if (!status) return;
+          if (status.over) {
+            Alert.alert(
+              'Over budget',
+              `You've spent ${formatMoney(status.spent)} of your ${formatMoney(status.limit)} ${catName} budget this month.`,
+            );
+          } else if (status.pct >= 80) {
+            Alert.alert(
+              'Budget alert',
+              `You're at ${status.pct}% of your ${catName} budget this month.`,
+            );
+          }
+        })
+        .catch(() => {});
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -144,15 +181,18 @@ export default function ExpenseFormScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Text style={styles.label}>Amount</Text>
-      <TextInput
-        style={styles.input}
-        keyboardType="decimal-pad"
-        placeholder="0.00"
-        placeholderTextColor="#9AA0A6"
-        value={amount}
-        onChangeText={setAmount}
-        editable={!saving}
-      />
+      <View style={styles.amountRow}>
+        <Text style={styles.amountPrefix}>R$</Text>
+        <TextInput
+          style={styles.amountInput}
+          keyboardType="decimal-pad"
+          placeholder="0,00"
+          placeholderTextColor={colors.textFaint}
+          value={amount}
+          onChangeText={setAmount}
+          editable={!saving}
+        />
+      </View>
 
       <Text style={styles.label}>Category</Text>
       <CategoryPicker categories={categories} value={categoryId} onChange={setCategoryId} />
@@ -161,7 +201,7 @@ export default function ExpenseFormScreen() {
       <TextInput
         style={styles.input}
         placeholder="e.g. Groceries"
-        placeholderTextColor="#9AA0A6"
+        placeholderTextColor={colors.textFaint}
         value={description}
         onChangeText={setDescription}
         editable={!saving}
@@ -178,6 +218,21 @@ export default function ExpenseFormScreen() {
           onValueChange={onValueChange}
           onDismiss={() => setShowDate(false)}
         />
+      )}
+
+      {isNew && (
+        <View style={styles.repeatRow}>
+          <View style={styles.repeatText}>
+            <Text style={styles.repeatTitle}>Repeat monthly</Text>
+            <Text style={styles.repeatSub}>Auto-add this expense every month</Text>
+          </View>
+          <Switch
+            value={repeat}
+            onValueChange={setRepeat}
+            trackColor={{ true: colors.primary, false: colors.border }}
+            thumbColor="#fff"
+          />
+        </View>
       )}
 
       <Pressable
@@ -202,29 +257,54 @@ export default function ExpenseFormScreen() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  container: { padding: 20, gap: 8, backgroundColor: '#fff', flexGrow: 1 },
-  label: { fontSize: 14, color: '#667085', marginTop: 8 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+  container: { padding: spacing.lg, gap: spacing.xs, backgroundColor: colors.bg, flexGrow: 1 },
+  label: { fontSize: font.sm, fontWeight: '600', color: colors.textMuted, marginTop: spacing.md },
   input: {
     borderWidth: 1,
-    borderColor: '#d0d5dd',
-    borderRadius: 10,
-    paddingHorizontal: 14,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 14,
-    fontSize: 16,
-    color: '#1a1a1a',
+    fontSize: font.body,
+    color: colors.text,
+    backgroundColor: colors.surface,
   },
-  dateText: { fontSize: 16, color: '#1a1a1a' },
-  button: {
-    backgroundColor: '#208AEF',
-    borderRadius: 10,
-    paddingVertical: 15,
+  amountRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.surface,
+  },
+  amountPrefix: { fontSize: font.body, fontWeight: '700', color: colors.textMuted, marginRight: spacing.sm },
+  amountInput: { flex: 1, paddingVertical: 14, fontSize: font.h3, fontWeight: '600', color: colors.text },
+  dateText: { fontSize: font.body, color: colors.text },
+  repeatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    padding: spacing.lg,
+    marginTop: spacing.md,
+  },
+  repeatText: { flex: 1 },
+  repeatTitle: { fontSize: font.body, fontWeight: '600', color: colors.text },
+  repeatSub: { fontSize: font.xs, color: colors.textMuted, marginTop: 2 },
+  button: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: spacing.xl,
   },
   disabled: { opacity: 0.6 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  deleteButton: { paddingVertical: 15, alignItems: 'center', marginTop: 8 },
-  deleteText: { color: '#D92D20', fontSize: 16, fontWeight: '600' },
-  error: { color: '#D92D20', fontSize: 14 },
+  buttonText: { color: '#fff', fontSize: font.body, fontWeight: '700' },
+  deleteButton: { paddingVertical: 14, alignItems: 'center', marginTop: spacing.xs },
+  deleteText: { color: colors.danger, fontSize: font.body, fontWeight: '600' },
+  error: { color: colors.danger, fontSize: font.sm },
 });

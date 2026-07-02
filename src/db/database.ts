@@ -50,20 +50,65 @@ const MIGRATIONS: ((db: SQLite.SQLiteDatabase) => Promise<void>)[] = [
     }
   },
 
-  // v2 — example for the future (kept commented so it doesn't run yet):
-  // async (db) => {
-  //   await db.execAsync('ALTER TABLE expenses ADD COLUMN note TEXT');
-  // },
+  // v2 — per-category monthly budgets (recurring limit per category)
+  async (db) => {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS budgets (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        category_id INTEGER NOT NULL UNIQUE REFERENCES categories(id) ON DELETE CASCADE,
+        limit_cents INTEGER NOT NULL
+      );
+    `);
+  },
+
+  // v3 — reconcile default categories (adds new defaults, skips existing by name)
+  async (db) => {
+    for (const c of DEFAULT_CATEGORIES) {
+      await db.runAsync(
+        `INSERT INTO categories (name, color, is_default)
+         SELECT ?, ?, 1
+         WHERE NOT EXISTS (SELECT 1 FROM categories WHERE name = ?)`,
+        c.name,
+        c.color,
+        c.name,
+      );
+    }
+  },
+
+  // v4 — recurring expense rules + link generated expenses back to their rule
+  async (db) => {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS recurring_expenses (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        category_id  INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+        amount_cents INTEGER NOT NULL,
+        description  TEXT,
+        day_of_month INTEGER NOT NULL,
+        start_date   TEXT    NOT NULL,
+        active       INTEGER NOT NULL DEFAULT 1,
+        created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    await db.execAsync('ALTER TABLE expenses ADD COLUMN recurring_id INTEGER');
+    await db.execAsync('CREATE INDEX IF NOT EXISTS ix_expenses_recurring ON expenses(recurring_id)');
+  },
 ];
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-/** Open (once) and return the shared DB connection, running any pending migrations. */
-export function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (!dbPromise) {
-    dbPromise = open();
+/** Open (once) and return the shared DB connection, running any pending migrations.
+ * Self-heals a stale/closed native handle (e.g. after a dev Fast Refresh, or if the
+ * OS reclaimed the connection) by reopening. */
+export async function getDb(): Promise<SQLite.SQLiteDatabase> {
+  if (!dbPromise) dbPromise = open();
+  try {
+    const db = await dbPromise;
+    await db.getFirstAsync('SELECT 1'); // liveness probe
+    return db;
+  } catch {
+    dbPromise = open(); // connection was invalidated — reopen fresh
+    return dbPromise;
   }
-  return dbPromise;
 }
 
 async function open(): Promise<SQLite.SQLiteDatabase> {

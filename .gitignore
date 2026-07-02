@@ -41,3 +41,8 @@ example
 # generated native folders
 /ios
 /android
+
+# Signing keystore + passwords — back these up privately, never commit.
+credentials/
+*.keystore
+*.jks

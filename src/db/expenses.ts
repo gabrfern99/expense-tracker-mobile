@@ -55,6 +55,22 @@ export async function listExpenses(year: number, month: number): Promise<Expense
   return rows.map(toExpense);
 }
 
+export async function listExpensesByCategory(
+  year: number,
+  month: number,
+  categoryId: number,
+): Promise<Expense[]> {
+  const db = await getDb();
+  const [start, end] = monthRange(year, month);
+  const rows = await db.getAllAsync<ExpRow>(
+    'SELECT * FROM expenses WHERE date >= ? AND date < ? AND category_id = ? ORDER BY date DESC, id DESC',
+    start,
+    end,
+    categoryId,
+  );
+  return rows.map(toExpense);
+}
+
 export async function getExpense(id: number): Promise<Expense> {
   const db = await getDb();
   const r = await db.getFirstAsync<ExpRow>('SELECT * FROM expenses WHERE id = ?', id);

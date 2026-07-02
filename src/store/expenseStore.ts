@@ -5,6 +5,7 @@ import { create } from 'zustand';
 
 import * as categoriesApi from '@/db/categories';
 import * as expensesApi from '@/db/expenses';
+import { materializeRecurring } from '@/db/recurring';
 import { currentPeriod } from '@/lib/format';
 import { Category, Expense, ExpenseSummary } from '@/types';
 
@@ -17,6 +18,7 @@ interface ExpenseState {
 
   loadCategories: () => Promise<void>;
   ensureCategories: () => Promise<void>;
+  syncPeriod: () => Promise<void>;
   setPeriod: (year: number, month: number) => void;
   loadExpenses: () => Promise<void>;
   loadSummary: () => Promise<void>;
@@ -43,6 +45,12 @@ export const useExpenseStore = create<ExpenseState>()((set, get) => ({
 
   setPeriod(year, month) {
     set({ year, month });
+  },
+
+  // Generate any due recurring occurrences up to the current period.
+  async syncPeriod() {
+    const { year, month } = get();
+    await materializeRecurring(year, month);
   },
 
   async loadExpenses() {

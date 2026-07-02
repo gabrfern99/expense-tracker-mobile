@@ -49,3 +49,24 @@ export interface ExpenseSummary {
   total: string;
   by_category: CategoryBreakdown[];
 }
+
+export interface RecurringItem {
+  id: number;
+  category_id: number;
+  category: string; // category name
+  color: string;
+  amount: string;
+  description: string | null;
+  day_of_month: number;
+  start_date: string; // YYYY-MM-DD
+}
+
+export interface BudgetStatus {
+  category_id: number;
+  category: string;
+  color: string;
+  limit: string; // monthly limit
+  spent: string; // spent in the selected month
+  pct: number; // spent / limit, rounded (can exceed 100)
+  over: boolean;
+}

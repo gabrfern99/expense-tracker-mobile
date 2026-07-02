@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { colors, font, radius, spacing } from '@/theme';
 import { Category } from '@/types';
 
 interface Props {
@@ -57,38 +58,39 @@ export function CategoryPicker({ categories, value, onChange }: Props) {
 const styles = StyleSheet.create({
   field: {
     borderWidth: 1,
-    borderColor: '#d0d5dd',
-    borderRadius: 10,
-    paddingHorizontal: 14,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
     paddingVertical: 14,
+    backgroundColor: colors.surface,
   },
-  selectedRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  selectedText: { fontSize: 16, color: '#1a1a1a' },
-  placeholder: { fontSize: 16, color: '#9AA0A6' },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' },
+  selectedRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  selectedText: { fontSize: font.body, color: colors.text },
+  placeholder: { fontSize: font.body, color: colors.textFaint },
+  backdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.4)', justifyContent: 'flex-end' },
   sheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingTop: 16,
-    paddingBottom: 32,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
     maxHeight: '70%',
   },
   sheetTitle: {
-    fontSize: 18,
+    fontSize: font.h3,
     fontWeight: '700',
-    color: '#1a1a1a',
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    color: colors.text,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.md,
   },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
     paddingVertical: 14,
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.xl,
   },
-  optionText: { flex: 1, fontSize: 16, color: '#1a1a1a' },
-  check: { color: '#208AEF', fontSize: 16, fontWeight: '700' },
+  optionText: { flex: 1, fontSize: font.body, color: colors.text },
+  check: { color: colors.primary, fontSize: font.body, fontWeight: '700' },
   dot: { width: 14, height: 14, borderRadius: 7 },
 });

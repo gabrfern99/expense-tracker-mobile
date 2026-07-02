@@ -1,6 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { monthLabel } from '@/lib/format';
+import { colors, font, radius, spacing } from '@/theme';
 
 interface Props {
   year: number;
@@ -14,12 +16,12 @@ export function MonthSelector({ year, month, onChange }: Props) {
 
   return (
     <View style={styles.row}>
-      <Pressable onPress={prev} hitSlop={12} style={styles.arrowButton}>
-        <Text style={styles.arrow}>‹</Text>
+      <Pressable onPress={prev} hitSlop={10} style={styles.btn}>
+        <Ionicons name="chevron-back" size={20} color={colors.primary} />
       </Pressable>
       <Text style={styles.label}>{monthLabel(year, month)}</Text>
-      <Pressable onPress={next} hitSlop={12} style={styles.arrowButton}>
-        <Text style={styles.arrow}>›</Text>
+      <Pressable onPress={next} hitSlop={10} style={styles.btn}>
+        <Ionicons name="chevron-forward" size={20} color={colors.primary} />
       </Pressable>
     </View>
   );
@@ -30,10 +32,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: spacing.sm,
   },
-  arrowButton: { paddingHorizontal: 16, paddingVertical: 4 },
-  arrow: { fontSize: 28, color: '#208AEF', fontWeight: '600' },
-  label: { fontSize: 18, fontWeight: '600', color: '#1a1a1a' },
+  btn: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  label: { fontSize: font.h3, fontWeight: '700', color: colors.text },
 });
